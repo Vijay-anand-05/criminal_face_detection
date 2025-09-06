@@ -1,0 +1,466 @@
+
+         // Loading overlay functions
+         function showLoading() {
+             console.log('Showing loading overlay');
+             const loadingOverlay = document.getElementById('loadingOverlay');
+             if (loadingOverlay) {
+                 loadingOverlay.classList.add('active');
+             } else {
+                 console.error('Loading overlay element not found');
+             }
+         }
+         
+         function hideLoading() {
+             console.log('Hiding loading overlay');
+             const loadingOverlay = document.getElementById('loadingOverlay');
+             if (loadingOverlay) {
+                 loadingOverlay.classList.remove('active');
+             }
+         }
+         
+         // Show loading overlay on page load for 5 seconds
+         window.addEventListener('load', () => {
+             showLoading();
+             setTimeout(() => {
+                 hideLoading();
+             }, 5000); // 5 seconds
+         });
+         
+         // Sidebar navigation
+         const menuItems = document.querySelectorAll('.menu-item');
+         const contentSections = document.querySelectorAll('.content-section');
+         
+         menuItems.forEach(item => {
+             item.addEventListener('click', () => {
+                 const target = item.getAttribute('data-target');
+                 menuItems.forEach(i => i.classList.remove('active'));
+                 item.classList.add('active');
+                 contentSections.forEach(section => section.classList.remove('active'));
+                 const targetSection = document.getElementById(target + 'Section');
+                 if (targetSection) {
+                     targetSection.classList.add('active');
+                 }
+             });
+         });
+         
+         // Camera functionality
+         const startCamBtn = document.getElementById('startCamBtn');
+         const stopCamBtn = document.getElementById('stopCamBtn');
+         const videoFeed = document.getElementById('videoFeed');
+         const videoPlaceholder = document.getElementById('videoPlaceholder');
+         const camResult = document.getElementById('camResult');
+         const cameraStatus = document.getElementById('cameraStatus');
+         
+         let cameraActive = false;
+         
+         // Start camera function
+         async function startCamera() {
+             if (cameraActive) {
+                 showAlert('Camera is already running.', 'warning');
+                 return;
+             }
+             try {
+                 showLoading();
+                 startCamBtn.disabled = true;
+                 startCamBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+         
+                 // Call start camera endpoint
+                 const response = await fetch('{% url "start_camera" %}', {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRFToken': '{{ csrf_token }}',
+                         'Content-Type': 'application/json',
+                     },
+                 });
+         
+                 if (response.ok) {
+                     cameraActive = true;
+                     
+                     // Update UI
+                     videoPlaceholder.classList.add('hidden');
+                     videoFeed.classList.remove('hidden');
+                     stopCamBtn.classList.remove('hidden');
+                     startCamBtn.classList.add('hidden');
+                     
+                     // Update status
+                     cameraStatus.className = 'camera-status status-active';
+                     cameraStatus.innerHTML = '<i class="fas fa-circle"></i> Camera Active';
+                     
+                     camResult.innerHTML = '<i class="fas fa-eye text-green-400 mr-2"></i> Monitoring for criminals...';
+                     camResult.className = 'result no-match';
+                     
+                     // Force reload the video feed
+                     videoFeed.src = "{% url 'video_feed' %}?" + new Date().getTime();
+                     
+                 } else {
+                     throw new Error('Failed to start camera');
+                 }
+             } catch (error) {
+                 console.error('Error starting camera:', error);
+                 camResult.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-2"></i> Failed to start camera';
+                 camResult.className = 'result match';
+                 showAlert('Failed to start camera: ' + error.message, 'error');
+             } finally {
+                 hideLoading();
+                 startCamBtn.disabled = false;
+                 startCamBtn.innerHTML = '<i class="fas fa-video"></i> Start Camera';
+             }
+         }
+         
+         // Stop camera function
+         async function stopCamera() {
+             try {
+                 showLoading();
+                 stopCamBtn.disabled = true;
+                 stopCamBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+         
+                 // Call stop camera endpoint
+                 const response = await fetch('{% url "stop_camera" %}', {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRFToken': '{{ csrf_token }}',
+                         'Content-Type': 'application/json',
+                     },
+                 });
+         
+                 if (response.ok) {
+                     cameraActive = false;
+                     
+                     // Update UI
+                     videoFeed.src = '';
+                     videoFeed.classList.add('hidden');
+                     videoPlaceholder.classList.remove('hidden');
+                     stopCamBtn.classList.add('hidden');
+                     startCamBtn.classList.remove('hidden');
+                     
+                     // Update status
+                     cameraStatus.className = 'camera-status status-inactive';
+                     cameraStatus.innerHTML = '<i class="fas fa-circle"></i> Camera Offline';
+                     
+                     camResult.innerHTML = '';
+                     camResult.className = 'result';
+                     
+                 } else {
+                     throw new Error('Failed to stop camera');
+                 }
+             } catch (error) {
+                 console.error('Error stopping camera:', error);
+                 showAlert('Failed to stop camera: ' + error.message, 'error');
+             } finally {
+                 hideLoading();
+                 stopCamBtn.disabled = false;
+                 stopCamBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+             }
+         }
+         
+         // Event listeners
+         startCamBtn.onclick = startCamera;
+         stopCamBtn.onclick = stopCamera;
+         
+         // Handle video feed errors
+         videoFeed.onerror = function() {
+             if (cameraActive) {
+                 console.log('Video feed error, attempting to reload...');
+                 setTimeout(() => {
+                     if (cameraActive) {
+                         videoFeed.src = "{% url 'video_feed' %}?" + new Date().getTime();
+                     }
+                 }, 2000);
+             }
+         };
+         
+         // Show alert for criminal detection
+         function showCriminalAlert(name, confidence) {
+             // Remove existing alerts
+             const existingAlerts = document.querySelectorAll('.detection-alert');
+             existingAlerts.forEach(alert => alert.remove());
+         
+             // Create new alert
+             const alert = document.createElement('div');
+             alert.className = 'detection-alert';
+             alert.innerHTML = `
+                 <i class="fas fa-exclamation-triangle mr-2"></i>
+                 CRIMINAL DETECTED: ${name} (${confidence}%)
+             `;
+             
+             document.body.appendChild(alert);
+             
+             // Auto remove after 5 seconds
+             setTimeout(() => {
+                 if (alert.parentNode) {
+                     alert.remove();
+                 }
+             }, 5000);
+         }
+         
+         // File input styling
+         const fileInput = document.getElementById('fileInput');
+         const fileInputLabel = document.querySelector('.file-input-label');
+         
+         if (fileInput && fileInputLabel) {
+             fileInput.addEventListener('change', function() {
+                 if (this.files && this.files[0]) {
+                     fileInputLabel.innerHTML = `
+                         <i class="fas fa-file-image"></i>
+                         <span>${this.files[0].name}</span>
+                         <small>Click to change</small>
+                     `;
+                 }
+             });
+         
+             // Drag and drop for file input
+             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                 fileInputLabel.addEventListener(eventName, preventDefaults, false);
+             });
+         
+             function preventDefaults(e) {
+                 e.preventDefault();
+                 e.stopPropagation();
+             }
+         
+             ['dragenter', 'dragover'].forEach(eventName => {
+                 fileInputLabel.addEventListener(eventName, highlight, false);
+             });
+         
+             ['dragleave', 'drop'].forEach(eventName => {
+                 fileInputLabel.addEventListener(eventName, unhighlight, false);
+             });
+         
+             function highlight() {
+                 fileInputLabel.style.borderColor = '#4299e1';
+                 fileInputLabel.style.backgroundColor = 'rgba(66, 153, 225, 0.1)';
+             }
+         
+             function unhighlight() {
+                 fileInputLabel.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                 fileInputLabel.style.backgroundColor = 'transparent';
+             }
+         
+             fileInputLabel.addEventListener('drop', handleDrop, false);
+         
+             function handleDrop(e) {
+                 const dt = e.dataTransfer;
+                 const files = dt.files;
+                 fileInput.files = files;
+                 if (files && files[0]) {
+                     fileInputLabel.innerHTML = `
+                         <i class="fas fa-file-image"></i>
+                         <span>${files[0].name}</span>
+                         <small>Click to change</small>
+                     `;
+                 }
+             }
+         }
+         
+         // Upload form AJAX handling
+         const uploadForm = document.getElementById('uploadForm');
+         const uploadResult = document.getElementById('uploadResult');
+         const uploadImageContainer = document.getElementById('uploadImageContainer');
+         
+         if (uploadForm) {
+             uploadForm.addEventListener('submit', async function(e) {
+                 e.preventDefault();
+                 const formData = new FormData(this);
+                 const submitButton = this.querySelector('button[type="submit"]');
+                 const originalText = submitButton.innerHTML;
+                 
+                 try {
+                     showLoading();
+                     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting...';
+                     submitButton.disabled = true;
+         
+                     const response = await fetch('{% url "detection_page" %}', {
+                         method: 'POST',
+                         body: formData,
+                         headers: {
+                             'X-CSRFToken': '{{ csrf_token }}',
+                         },
+                     });
+         
+                     const data = await response.json();
+         
+                     if (data.success) {
+                         // Update result
+                         uploadResult.className = `result ${data.result.includes('Criminal Detected') ? 'match' : data.result.includes('Not a Criminal') ? 'no-match' : 'warning'}`;
+                         uploadResult.innerHTML = `
+                             <i class="fas fa-${data.result.includes('Criminal Detected') ? 'exclamation-circle' : data.result.includes('Not a Criminal') ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+                             ${data.result}
+                         `;
+                         
+                         // Update image if provided
+                         if (data.uploaded_file_url) {
+                             uploadImageContainer.innerHTML = `
+                                 <img class="captured-image" src="${data.uploaded_file_url}" alt="Uploaded Image">
+                             `;
+                         } else {
+                             uploadImageContainer.innerHTML = '';
+                         }
+         
+                         showAlert('Image processed successfully', 'success');
+                     } else {
+                         uploadResult.className = 'result warning';
+                         uploadResult.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i> ${data.message}`;
+                         showAlert(data.message, 'error');
+                     }
+                 } catch (error) {
+                     console.error('Error uploading image:', error);
+                     uploadResult.className = 'result warning';
+                     uploadResult.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i> Error uploading image`;
+                     showAlert('Error uploading image: ' + error.message, 'error');
+                 } finally {
+                     hideLoading();
+                     submitButton.innerHTML = originalText;
+                     submitButton.disabled = false;
+                 }
+             });
+         }
+         
+         // Criminal Management Functions
+         const addCriminalForm = document.getElementById('addCriminalForm');
+         
+         if (addCriminalForm) {
+             addCriminalForm.addEventListener('submit', async function(e) {
+                 e.preventDefault();
+                 
+                 const formData = new FormData(this);
+                 const submitButton = this.querySelector('button[type="submit"]');
+                 const originalText = submitButton.innerHTML;
+                 
+                 try {
+                     showLoading();
+                     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+                     submitButton.disabled = true;
+                     
+                     const response = await fetch('{% url "add_criminal" %}', {
+                         method: 'POST',
+                         body: formData,
+                         headers: {
+                             'X-CSRFToken': '{{ csrf_token }}',
+                         },
+                     });
+                     
+                     const data = await response.json();
+                     
+                     if (data.success) {
+                         showAlert(data.message, 'success');
+                         this.reset();
+                         // Reload page to show new criminal
+                         setTimeout(() => {
+                             window.location.reload();
+                         }, 1500);
+                     } else {
+                         showAlert(data.message, 'error');
+                     }
+                     
+                 } catch (error) {
+                     console.error('Error adding criminal:', error);
+                     showAlert('Error adding criminal: ' + error.message, 'error');
+                 } finally {
+                     hideLoading();
+                     submitButton.innerHTML = originalText;
+                     submitButton.disabled = false;
+                 }
+             });
+         }
+         
+         // Delete criminal function
+         async function deleteCriminal(criminalId, criminalName) {
+             if (!confirm(`Are you sure you want to delete criminal "${criminalName}"? This action cannot be undone.`)) {
+                 return;
+             }
+             
+             try {
+                 showLoading();
+                 const response = await fetch(`/delete_criminal/${criminalId}/`, {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRFToken': '{{ csrf_token }}',
+                         'Content-Type': 'application/json',
+                     },
+                 });
+                 
+                 const data = await response.json();
+                 
+                 if (data.success) {
+                     showAlert(data.message, 'success');
+                     // Reload page to remove deleted criminal
+                     setTimeout(() => {
+                         window.location.reload();
+                     }, 1500);
+                 } else {
+                     showAlert(data.message, 'error');
+                 }
+                 
+             } catch (error) {
+                 console.error('Error deleting criminal:', error);
+                 showAlert('Error deleting criminal: ' + error.message, 'error');
+             } finally {
+                 hideLoading();
+             }
+         }
+         
+         // View criminal function
+         function viewCriminal(criminalId) {
+             // Implement a modal or detailed view here
+             showAlert('View criminal feature - implement as needed', 'info');
+         }
+         
+         // Alert function
+         function showAlert(message, type = 'info') {
+             console.log(`Showing alert: ${message}, type: ${type}`);
+             // Remove existing alerts
+             const existingAlerts = document.querySelectorAll('.alert-notification');
+             existingAlerts.forEach(alert => alert.remove());
+         
+             // Create new alert
+             const alert = document.createElement('div');
+             
+             let bgColor, icon;
+             switch(type) {
+                 case 'success':
+                     bgColor = 'bg-green-900 bg-opacity-80 text-green-100';
+                     icon = 'fas fa-check-circle';
+                     break;
+                 case 'error':
+                     bgColor = 'bg-red-900 bg-opacity-80 text-red-100';
+                     icon = 'fas fa-exclamation-circle';
+                     break;
+                 case 'warning':
+                     bgColor = 'bg-yellow-900 bg-opacity-80 text-yellow-100';
+                     icon = 'fas fa-exclamation-triangle';
+                     break;
+                 default:
+                     bgColor = 'bg-blue-900 bg-opacity-80 text-blue-100';
+                     icon = 'fas fa-info-circle';
+             }
+             
+             alert.className = `alert-notification ${bgColor}`;
+             alert.innerHTML = `
+                 <div class="flex items-center">
+                     <i class="${icon} mr-3"></i>
+                     <span>${message}</span>
+                     <button onclick="this.parentElement.parentElement.remove()" class="ml-4 hover:opacity-70">
+                         <i class="fas fa-times"></i>
+                     </button>
+                 </div>
+             `;
+             
+             document.body.appendChild(alert);
+             
+             // Auto remove after 5 seconds
+             setTimeout(() => {
+                 if (alert.parentNode) {
+                     alert.remove();
+                 }
+             }, 5000);
+         }
+         
+         // Make functions globally available
+         window.deleteCriminal = deleteCriminal;
+         window.viewCriminal = viewCriminal;
+         window.addEventListener('beforeunload', function() {
+             if (cameraActive) {
+                 navigator.sendBeacon('{% url "stop_camera" %}');
+             }
+         });
+     

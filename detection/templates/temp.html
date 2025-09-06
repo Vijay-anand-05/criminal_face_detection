@@ -1,0 +1,652 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criminal Face Detection System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: #e5e7eb;
+            font-family: 'Inter', sans-serif;
+        }
+        .sidebar {
+            background: #16213e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 80px;
+        }
+        .sidebar.collapsed .sidebar-header h2, .sidebar.collapsed .menu-item span {
+            display: none;
+        }
+        .menu-item {
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            margin: 0.5rem;
+        }
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        .menu-item.active {
+            background: #4b5efa;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .card {
+            background: #1f2a44;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .btn {
+            background: linear-gradient(90deg, #4b5efa, #7b3fe4);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .file-input-container {
+            position: relative;
+            background: #2d3748;
+            border: 2px dashed #4b5efa;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .file-input-container:hover {
+            border-color: #7b3fe4;
+            background: rgba(75, 94, 250, 0.2);
+        }
+        .file-input-container.drag-active {
+            border-color: #7b3fe4;
+            background: rgba(75, 94, 250, 0.3);
+            transform: scale(1.02);
+        }
+        .file-input-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .file-input-icon {
+            font-size: 2.5rem;
+            color: #4b5efa;
+            transition: color 0.3s ease;
+        }
+        .file-input-container:hover .file-input-icon {
+            color: #7b3fe4;
+        }
+        .file-input-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .file-input-subtext {
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+        .result.match {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-radius: 8px;
+        }
+        .result.no-match {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border-radius: 8px;
+        }
+        .result.warning {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+            border-radius: 8px;
+        }
+        .video-container {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .history-table, .criminal-table {
+            background: #2d3748;
+            border-radius: 8px;
+        }
+        .history-table th, .criminal-table th {
+            background: #4b5efa;
+            color: white;
+        }
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+        .status-match { background: #22c55e; color: white; }
+        .status-unknown { background: #eab308; color: white; }
+        .status-no-face { background: #ef4444; color: white; }
+        .detection-alert, .alert-notification {
+            animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-64 flex flex-col transition-all duration-300">
+        <div class="sidebar-header p-6 border-b border-gray-700">
+            <h2 class="text-xl font-bold flex items-center">
+                <i class="fas fa-shield-alt mr-2"></i> Detection System
+            </h2>
+        </div>
+        <div class="flex-1 p-4 space-y-2">
+            <div class="menu-item p-3 flex items-center cursor-pointer active" data-target="upload">
+                <i class="fas fa-upload mr-3"></i><span>Upload Image</span>
+            </div>
+            <div class="menu-item p-3 flex items-center cursor-pointer" data-target="camera">
+                <i class="fas fa-camera mr-3"></i><span>Camera Scan</span>
+            </div>
+            <div class="menu-item p-3 flex items-center cursor-pointer" data-target="history">
+                <i class="fas fa-history mr-3"></i><span>Scan History</span>
+            </div>
+            <div class="menu-item p-3 flex items-center cursor-pointer" data-target="criminals">
+                <i class="fas fa-user-secret mr-3"></i><span>Manage Criminals</span>
+            </div>
+        </div>
+        <button id="sidebarToggle" class="p-4 text-center bg-gray-800">
+            <i class="fas fa-chevron-left text-white"></i>
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content ml-64 flex-1 p-8 transition-all duration-300" id="mainContent">
+        <!-- Upload Section -->
+        <div class="content-section active" id="uploadSection">
+            <div class="card p-6">
+                <div class="card-header mb-6">
+                    <h1 class="card-title text-2xl font-bold flex items-center">
+                        <i class="fas fa-upload mr-2"></i> Upload Image for Detection
+                    </h1>
+                </div>
+                <form method="post" enctype="multipart/form-data" class="space-y-6" action="{% url 'detection_page' %}">
+                    {% csrf_token %}
+                    <div class="file-input-container relative">
+                        <label class="file-input-label" for="fileInput">
+                            <i class="fas fa-cloud-upload-alt file-input-icon"></i>
+                            <span class="file-input-text">Upload an Image</span>
+                            <span class="file-input-subtext">Drag and drop or click to select (JPEG, PNG)</span>
+                        </label>
+                        <input type="file" id="fileInput" name="face" accept="image/*" required class="hidden">
+                    </div>
+                    <div class="flex justify-center">
+                        <button class="btn flex items-center" type="submit">
+                            <i class="fas fa-search mr-2"></i> Detect Faces
+                        </button>
+                    </div>
+                </form>
+                {% if result %}
+                    <div class="result p-4 mt-6 flex items-center {% if 'Criminal Detected' in result %}match{% elif 'Not a Criminal' in result %}no-match{% else %}warning{% endif %}">
+                        <i class="fas fa-{% if 'Criminal Detected' in result %}exclamation-circle{% elif 'Not a Criminal' in result %}check-circle{% else %}exclamation-triangle{% endif %} mr-2"></i>
+                        {{ result }}
+                    </div>
+                    {% if uploaded_file_url %}
+                    <div class="media-container mt-6">
+                        <img class="captured-image rounded-lg w-full max-w-md mx-auto border border-gray-700" src="{{ uploaded_file_url }}" alt="Uploaded Image">
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Real-time Camera Scan Section -->
+        <div class="content-section hidden" id="cameraSection">
+            <div class="card p-6">
+                <div class="card-header mb-4">
+                    <h1 class="card-title text-2xl font-bold flex items-center">
+                        <i class="fas fa-camera mr-2"></i> Real-time Criminal Detection
+                    </h1>
+                </div>
+                <div class="flex items-center justify-center mb-4 space-x-4">
+                    <button id="startCamBtn" class="btn">
+                        <i class="fas fa-video mr-2"></i> Start Camera
+                    </button>
+                    <button id="stopCamBtn" class="btn bg-red-600 hidden">
+                        <i class="fas fa-stop mr-2"></i> Stop Camera
+                    </button>
+                    <span id="cameraStatus" class="camera-status flex items-center text-sm">
+                        <i class="fas fa-circle mr-2 text-red-500"></i> Camera Offline
+                    </span>
+                </div>
+                <div class="video-container relative">
+                    <div id="videoPlaceholder" class="video-placeholder p-8 text-center bg-gray-800 rounded-lg">
+                        <i class="fas fa-video-slash text-4xl mb-2"></i>
+                        <p>Click "Start Camera" to begin detection</p>
+                    </div>
+                    <img id="videoFeed" 
+                         src="{% url 'video_feed' %}" 
+                         alt="Video Feed" 
+                         class="hidden w-full" 
+                         width="640" 
+                         height="480"
+                         style="object-fit: cover;">
+                </div>
+                <div id="camResult" class="result text-center mt-4 p-4"></div>
+                <div class="mt-4 grid grid-cols-2 gap-4">
+                    <div class="bg-red-900/50 p-4 rounded-lg">
+                        <h3 class="text-red-300 font-semibold">Criminals Detected Today</h3>
+                        <p class="text-2xl font-bold text-red-400" id="criminalsToday">0</p>
+                    </div>
+                    <div class="bg-green-900/50 p-4 rounded-lg">
+                        <h3 class="text-green-300 font-semibold">Total Scans</h3>
+                        <p class="text-2xl font-bold text-green-400" id="totalScans">{{ scans.count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="content-section hidden" id="historySection">
+            <div class="card p-6">
+                <div class="card-header mb-4">
+                    <h1 class="card-title text-2xl font-bold flex items-center">
+                        <i class="fas fa-history mr-2"></i> Scan History
+                    </h1>
+                </div>
+                {% if scans %}
+                <div class="overflow-x-auto">
+                    <table class="history-table w-full text-left">
+                        <thead>
+                            <tr>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Image</th>
+                                <th class="p-3">Name</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in scans %}
+                            <tr class="border-t border-gray-700">
+                                <td class="p-3">{{ scan.date|date:"M d, Y H:i" }}</td>
+                                <td class="p-3">
+                                    {% if scan.image %}
+                                    <img src="{{ scan.image.url }}" alt="Scan image" class="history-image w-16 h-16 object-cover rounded">
+                                    {% else %}
+                                    <span>No image</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3">{{ scan.name }}</td>
+                                <td class="p-3">
+                                    {% if scan.name == "Unknown" %}
+                                    <span class="status-badge status-unknown">Unknown</span>
+                                    {% elif scan.name == "No face" %}
+                                    <span class="status-badge status-no-face">No Face</span>
+                                    {% else %}
+                                    <span class="status-badge status-match">Match</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-400 py-8">No scan history available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Manage Criminals Section -->
+        <div class="content-section hidden" id="criminalsSection">
+            <div class="card p-6">
+                <div class="card-header mb-4">
+                    <h1 class="card-title text-2xl font-bold flex items-center">
+                        <i class="fas fa-user-secret mr-2"></i> Manage Criminals
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form id="addCriminalForm" enctype="multipart/form-data" class="space-y-4 mb-8">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="name" class="block font-semibold">Name</label>
+                            <input type="text" id="name" name="name" required class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg">
+                        </div>
+                        <div class="form-group">
+                            <label for="description" class="block font-semibold">Description</label>
+                            <textarea id="description" name="description" rows="4" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="image" class="block font-semibold">Image</label>
+                            <input type="file" id="image" name="image" accept="image/*" required class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg">
+                        </div>
+                        <button type="submit" class="btn"><i class="fas fa-plus mr-2"></i> Add Criminal</button>
+                    </form>
+                    <table class="criminal-table w-full text-left">
+                        <thead>
+                            <tr>
+                                <th class="p-3">Image</th>
+                                <th class="p-3">Name</th>
+                                <th class="p-3">Description</th>
+                                <th class="p-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for criminal in criminals %}
+                            <tr class="border-t border-gray-700">
+                                <td class="p-3"><img src="{{ criminal.image.url }}" alt="{{ criminal.name }}" class="w-16 h-16 object-cover rounded"></td>
+                                <td class="p-3">{{ criminal.name }}</td>
+                                <td class="p-3">{{ criminal.description|truncatewords:20 }}</td>
+                                <td class="p-3 flex space-x-2">
+                                    <button class="btn bg-blue-600" onclick="viewCriminal({{ criminal.id }})">
+                                        <i class="fas fa-eye mr-2"></i> View
+                                    </button>
+                                    <button class="btn bg-red-600" onclick="deleteCriminal({{ criminal.id }}, '{{ criminal.name }}')">
+                                        <i class="fas fa-trash mr-2"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center p-3">No criminals registered.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const menuItems = document.querySelectorAll('.menu-item');
+        const contentSections = document.querySelectorAll('.content-section');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('ml-64');
+            mainContent.classList.toggle('ml-20');
+            const icon = sidebarToggle.querySelector('i');
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-right');
+        });
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.getAttribute('data-target');
+                menuItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                contentSections.forEach(section => section.classList.add('hidden'));
+                document.getElementById(target + 'Section').classList.remove('hidden');
+            });
+        });
+
+        // Camera functionality
+        const startCamBtn = document.getElementById('startCamBtn');
+        const stopCamBtn = document.getElementById('stopCamBtn');
+        const videoFeed = document.getElementById('videoFeed');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const camResult = document.getElementById('camResult');
+        const cameraStatus = document.getElementById('cameraStatus');
+        let cameraActive = false;
+
+        async function startCamera() {
+            if (cameraActive) {
+                showAlert('Camera is already running.', 'warning');
+                return;
+            }
+            try {
+                startCamBtn.disabled = true;
+                startCamBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Starting...';
+                const response = await fetch('{% url "start_camera" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+                });
+                if (response.ok) {
+                    cameraActive = true;
+                    videoPlaceholder.classList.add('hidden');
+                    videoFeed.classList.remove('hidden');
+                    stopCamBtn.classList.remove('hidden');
+                    startCamBtn.classList.add('hidden');
+                    cameraStatus.className = 'camera-status flex items-center text-sm';
+                    cameraStatus.innerHTML = '<i class="fas fa-circle mr-2 text-green-500"></i> Camera Active';
+                    camResult.innerHTML = '<i class="fas fa-eye text-green-400 mr-2"></i> Monitoring for criminals...';
+                    camResult.className = 'result text-center mt-4 p-4 text-green-400';
+                    videoFeed.src = "{% url 'video_feed' %}?" + new Date().getTime();
+                } else {
+                    throw new Error('Failed to start camera');
+                }
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                camResult.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-2"></i> Failed to start camera';
+                camResult.className = 'result text-center mt-4 p-4 text-red-400';
+            } finally {
+                startCamBtn.disabled = false;
+                startCamBtn.innerHTML = '<i class="fas fa-video mr-2"></i> Start Camera';
+            }
+        }
+
+        async function stopCamera() {
+            try {
+                stopCamBtn.disabled = true;
+                stopCamBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Stopping...';
+                const response = await fetch('{% url "stop_camera" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+                });
+                if (response.ok) {
+                    cameraActive = false;
+                    videoFeed.src = '';
+                    videoFeed.classList.add('hidden');
+                    videoPlaceholder.classList.remove('hidden');
+                    stopCamBtn.classList.add('hidden');
+                    startCamBtn.classList.remove('hidden');
+                    cameraStatus.className = 'camera-status flex items-center text-sm';
+                    cameraStatus.innerHTML = '<i class="fas fa-circle mr-2 text-red-500"></i> Camera Offline';
+                    camResult.innerHTML = '';
+                    camResult.className = 'result text-center mt-4 p-4';
+                } else {
+                    throw new Error('Failed to stop camera');
+                }
+            } catch (error) {
+                console.error('Error stopping camera:', error);
+                showAlert('Failed to stop camera: ' + error.message, 'error');
+            } finally {
+                stopCamBtn.disabled = false;
+                stopCamBtn.innerHTML = '<i class="fas fa-stop mr-2"></i> Stop Camera';
+            }
+        }
+
+        startCamBtn.onclick = startCamera;
+        stopCamBtn.onclick = stopCamera;
+
+        videoFeed.onerror = function() {
+            if (cameraActive) {
+                console.log('Video feed error, attempting to reload...');
+                setTimeout(() => {
+                    if (cameraActive) {
+                        videoFeed.src = "{% url 'video_feed' %}?" + new Date().getTime();
+                    }
+                }, 2000);
+            }
+        };
+
+        function showCriminalAlert(name, confidence) {
+            const existingAlerts = document.querySelectorAll('.detection-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            const alert = document.createElement('div');
+            alert.className = 'detection-alert fixed top-5 right-5 px-6 py-4 rounded-lg shadow-lg bg-red-500 text-white max-w-sm';
+            alert.innerHTML = `
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                CRIMINAL DETECTED: ${name} (${confidence}%)
+            `;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        const fileInput = document.getElementById('fileInput');
+        const fileInputContainer = document.querySelector('.file-input-container');
+
+        if (fileInput && fileInputContainer) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileInputContainer.innerHTML = `
+                        <label class="file-input-label" for="fileInput">
+                            <i class="fas fa-file-image file-input-icon"></i>
+                            <span class="file-input-text">${this.files[0].name}</span>
+                            <span class="file-input-subtext">Click to change file</span>
+                        </label>
+                        <input type="file" id="fileInput" name="face" accept="image/*" required class="hidden">
+                    `;
+                }
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                fileInputContainer.addEventListener(eventName, () => {
+                    fileInputContainer.classList.add('drag-active');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                fileInputContainer.addEventListener(eventName, () => {
+                    fileInputContainer.classList.remove('drag-active');
+                }, false);
+            });
+
+            fileInputContainer.addEventListener('dragenter', preventDefaults, false);
+            fileInputContainer.addEventListener('dragover', preventDefaults, false);
+            fileInputContainer.addEventListener('dragleave', preventDefaults, false);
+            fileInputContainer.addEventListener('drop', preventDefaults, false);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            fileInputContainer.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                if (files && files[0]) {
+                    fileInputContainer.innerHTML = `
+                        <label class="file-input-label" for="fileInput">
+                            <i class="fas fa-file-image file-input-icon"></i>
+                            <span class="file-input-text">${files[0].name}</span>
+                            <span class="file-input-subtext">Click to change file</span>
+                        </label>
+                        <input type="file" id="fileInput" name="face" accept="image/*" required class="hidden">
+                    `;
+                }
+            }
+        }
+
+        const addCriminalForm = document.getElementById('addCriminalForm');
+        if (addCriminalForm) {
+            addCriminalForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const submitButton = this.querySelector('button[type="submit"]');
+                const originalText = submitButton.innerHTML;
+                try {
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+                    submitButton.disabled = true;
+                    const response = await fetch('{% url "add_criminal" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        this.reset();
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showAlert(data.message, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error adding criminal: ' + error.message, 'error');
+                } finally {
+                    submitButton.innerHTML = originalText;
+                    submitButton.disabled = false;
+                }
+            });
+        }
+
+        async function deleteCriminal(criminalId, criminalName) {
+            if (!confirm(`Are you sure you want to delete criminal "${criminalName}"? This action cannot be undone.`)) {
+                return;
+            }
+            try {
+                const response = await fetch(`/delete_criminal/${criminalId}/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error deleting criminal: ' + error.message, 'error');
+            }
+        }
+
+        function viewCriminal(criminalId) {
+            showAlert('View criminal feature - implement as needed', 'info');
+        }
+
+        function showAlert(message, type = 'info') {
+            const existingAlerts = document.querySelectorAll('.alert-notification');
+            existingAlerts.forEach(alert => alert.remove());
+            const alert = document.createElement('div');
+            alert.className = `alert-notification fixed top-5 right-5 px-6 py-4 rounded-lg shadow-lg z-50 max-w-sm`;
+            let bgColor, textColor, icon;
+            switch(type) {
+                case 'success': bgColor = 'bg-green-500'; textColor = 'text-white'; icon = 'fas fa-check-circle'; break;
+                case 'error': bgColor = 'bg-red-500'; textColor = 'text-white'; icon = 'fas fa-exclamation-circle'; break;
+                case 'warning': bgColor = 'bg-yellow-500'; textColor = 'text-white'; icon = 'fas fa-exclamation-triangle'; break;
+                default: bgColor = 'bg-blue-500'; textColor = 'text-white'; icon = 'fas fa-info-circle';
+            }
+            alert.className += ` ${bgColor} ${textColor}`;
+            alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="${icon} mr-3"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        window.deleteCriminal = deleteCriminal;
+        window.viewCriminal = viewCriminal;
+        window.addEventListener('beforeunload', function() {
+            if (cameraActive) {
+                navigator.sendBeacon('{% url "stop_camera" %}');
+            }
+        });
+    </script>
+</body>
+</html>

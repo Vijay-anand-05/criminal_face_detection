@@ -1,0 +1,50 @@
+<div class="content-section" id="cameraSection">
+                <div class="card">
+                    <div class="card-header">
+                        <h1 class="card-title">
+                            <i class="fas fa-camera"></i> Real-time Criminal Detection
+                        </h1>
+                    </div>
+                    <div class="card-body">
+                        <!-- Camera Controls -->
+                        <div class="flex flex-wrap items-center justify-center mb-4 gap-4">
+                            <button id="startCamBtn" class="btn">
+                                <i class="fas fa-video"></i> Start Camera
+                            </button>
+                            <button id="stopCamBtn" class="btn btn-danger hidden">
+                                <i class="fas fa-stop"></i> Stop Camera
+                            </button>
+                            <span id="cameraStatus" class="camera-status status-inactive">
+                                <i class="fas fa-circle"></i> Camera Offline
+                            </span>
+                        </div>
+
+                        <!-- Video Feed Container -->
+                        <div class="video-container">
+                            <div id="videoPlaceholder" class="video-placeholder">
+                                <div class="text-center">
+                                    <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                    <p>Click "Start Camera" to begin detection</p>
+                                </div>
+                            </div>
+                            <img id="videoFeed" 
+                                 src="{% url 'video_feed' %}?" 
+                                 alt="Video Feed" 
+                                 class="hidden w-full h-auto"
+                                 style="object-fit: cover;">
+                        </div>
+                        
+                        <!-- Detection Results -->
+                        <div id="camResult" class="result text-center"></div>
+                        
+                        <!-- Detection Statistics -->
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            
+                            <div class="bg-green-900 bg-opacity-20 p-4 rounded-lg">
+                                <h3 class="text-green-400 font-semibold">Total Scans</h3>
+                                <p class="text-2xl font-bold text-green-400" id="totalScans">{{ scans.count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>

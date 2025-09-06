@@ -1,0 +1,49 @@
+<div class="content-section" id="historySection">
+                <div class="card">
+                    <div class="card-header">
+                        <h1 class="card-title"><i class="fas fa-history"></i> Scan History</h1>
+                    </div>
+                    <div class="card-body">
+                        {% if scans %}
+                        <div class="overflow-x-auto">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for scan in scans %}
+                                    <tr>
+                                        <td>{{ scan.date|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            {% if scan.image %}
+                                            <img src="{{ scan.image.url }}" alt="Scan image" class="history-image">
+                                            {% else %}
+                                            <span>No image</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ scan.name }}</td>
+                                        <td>
+                                            {% if scan.name == "Unknown" %}
+                                            <span class="status-badge status-unknown">Unknown</span>
+                                            {% elif scan.name == "No face" %}
+                                            <span class="status-badge status-no-face">No Face</span>
+                                            {% else %}
+                                            <span class="status-badge status-match">Match</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-center text-gray-400 py-8">No scan history available</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>

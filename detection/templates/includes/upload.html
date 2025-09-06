@@ -1,0 +1,25 @@
+<div class="content-section active" id="uploadSection">
+                <div class="card">
+                    <div class="card-header">
+                        <h1 class="card-title"><i class="fas fa-upload"></i> Upload Image for Detection</h1>
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="file-input-container">
+                                <label class="file-input-label" for="fileInput">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <span>Choose an image file</span>
+                                    <small>or drag and drop here</small>
+                                </label>
+                                <input type="file" id="fileInput" name="face" accept="image/*" required >
+                            </div>
+                            <div class="text-center">
+                                <button class="btn" type="submit"><i class="fas fa-search"></i> Detect Faces</button>
+                            </div>
+                        </form>
+                        <div id="uploadResult" class="result"></div>
+                        <div id="uploadImageContainer" class="media-container"></div>
+                    </div>
+                </div>
+            </div>
