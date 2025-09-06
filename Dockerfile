@@ -13,14 +13,12 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# Copy Django project
 COPY . .
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
-# Expose port
 EXPOSE 10000
 
-# Start the app
 CMD ["gunicorn", "criminal_face_detection.wsgi:application", "--bind", "0.0.0.0:10000"]
