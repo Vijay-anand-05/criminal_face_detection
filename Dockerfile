@@ -1,9 +1,10 @@
 FROM python:3.11-slim
 
-# Install system dependencies for face_recognition + mysqlclient
+# Install system dependencies for dlib, face_recognition, mysqlclient
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
+    cmake \
     g++ \
     make \
     libboost-all-dev \
@@ -18,15 +19,11 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY requirements.txt .
-
-# Install prebuilt dlib wheel from PyPI instead of compiling
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir dlib==19.24.2 --only-binary=:all: \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Collect static files for Django
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 10000
