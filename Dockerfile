@@ -1,9 +1,8 @@
 FROM python:3.11-slim
 
-# Install system dependencies for dlib & mysqlclient
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    cmake \
     g++ \
     make \
     libboost-all-dev \
@@ -14,7 +13,17 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     default-libmysqlclient-dev \
     pkg-config \
+    wget \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest cmake (fix dlib build issue)
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor -o /usr/share/keyrings/kitware.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/kitware.gpg] https://apt.kitware.com/ubuntu/ $(. /etc/os-release && echo $VERSION_CODENAME) main" \
+    > /etc/apt/sources.list.d/kitware.list && \
+    apt-get update && \
+    apt-get install -y cmake && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
