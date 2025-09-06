@@ -4,7 +4,6 @@ FROM python:3.11-slim
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    cmake \
     g++ \
     make \
     libboost-all-dev \
@@ -12,7 +11,13 @@ RUN apt-get update && \
     ffmpeg \
     default-libmysqlclient-dev \
     pkg-config \
+    wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest CMake (needed for dlib build)
+RUN wget -qO- https://cmake.org/files/v3.29/cmake-3.29.6-linux-x86_64.tar.gz \
+    | tar --strip-components=1 -xz -C /usr/local
 
 WORKDIR /app
 
