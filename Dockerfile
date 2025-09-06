@@ -1,9 +1,20 @@
 FROM python:3.11-slim
 
-# Install system dependencies for dlib
-RUN apt-get update && \
-    apt-get install -y cmake g++ make libboost-all-dev libopencv-dev ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies for dlib & mysqlclient
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    g++ \
+    make \
+    libboost-all-dev \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    libopencv-dev \
+    ffmpeg \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -13,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 10000
 
