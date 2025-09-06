@@ -3,10 +3,10 @@ click==8.2.1
 colorama==0.4.6
 Django==5.2.6
 
-# Use PyPI version instead of local wheel (precompiled, lighter build)
+# Precompiled dlib to avoid build errors on Render
 dlib==19.24.2
 face-recognition==1.3.0
-face_recognition_models==0.3.0
+face-recognition-models==0.3.0
 
 mysqlclient==2.2.7
 numpy==2.2.6
@@ -17,3 +17,6 @@ tzdata==2025.2
 
 # Needed for Render to run Django
 gunicorn==23.0.0
+
+# Optional: improve server performance
+psycopg2-binary==2.9.9
